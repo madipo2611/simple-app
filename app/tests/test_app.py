@@ -46,7 +46,7 @@ def test_create_user_missing_field(client):
 
 def test_create_and_get_user(client):
     user_data = {"name": "Test User", "email": "test@user.com"}
-    post_resp = client.post('/api/users', data=json.dumps user_data, content_type='application/json')
+    post_resp = client.post('/api/users', data=json.dumps(user_data), content_type='application/json')
     assert post_resp.status_code == 201
     created_user = post_resp.get_json()
     user_id = created_user['id']
