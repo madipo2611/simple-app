@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LOG_FILE="./server-info.log" 
+LOG_FILE="./server-info.log"
 SCRIPT_NAME=$(basename "$0")
 VERSION="1.0.0"
 
+# Функция для вывода справки
 show_help() {
     cat << EOF
 Использование: $SCRIPT_NAME [--help] [URL1 URL2 ...]
@@ -15,6 +16,7 @@ show_help() {
 Аргументы:
   URL1 URL2 ...   Список URL для проверки здоровья (опционально).
   --help          Показать эту справку.
+  --version       Показать версию.
 
 Примеры:
   $SCRIPT_NAME
@@ -22,21 +24,33 @@ show_help() {
 EOF
 }
 
+# Функция для вывода версии
+show_version() {
+    echo "$SCRIPT_NAME version $VERSION"
+}
+
+# Функция для логирования с временной меткой
 log_message() {
     local message="$1"
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] $message" | tee -a "$LOG_FILE"
 }
 
 # Функция для сбора системной информации
 get_system_info() {
+    local hostname
+    local os_info
+    local kernel
+    local uptime_info
+    
     echo "=== Server Diagnostics ==="
     log_message "=== Server Diagnostics ==="
-
-    local hostname=$(hostname)
-    local os_info=$(lsb_release -d 2>/dev/null | cut -f2 || grep -m1 '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "N/A")
-    local kernel=$(uname -r)
-    local uptime_info=$(uptime -p | sed 's/up //')
+    
+    hostname=$(hostname)
+    os_info=$(lsb_release -d 2>/dev/null | cut -f2 || grep -m1 '^PRETTY_NAME' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "N/A")
+    kernel=$(uname -r)
+    uptime_info=$(uptime -p | sed 's/up //')
 
     echo "Date: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "Hostname: $hostname"
@@ -47,28 +61,37 @@ get_system_info() {
 
 # Функция для сбора информации о ресурсах
 get_resources() {
+    local load
+    local cpu_cores
+    local ram_total
+    local ram_used
+    local ram_percent
+    local disk_used
+    local disk_total
+    local disk_percent
+    
     echo -e "\n=== Resources ==="
     log_message "=== Resources ==="
 
     # CPU Load
-    local load=$(uptime | awk -F'load average:' '{print $2}' | xargs)
-    local cpu_cores=$(nproc 2>/dev/null || echo "N/A")
+    load=$(uptime | awk -F'load average:' '{print $2}' | xargs)
+    cpu_cores=$(nproc 2>/dev/null || echo "N/A")
     echo "CPU: $cpu_cores cores, load average: $load"
 
     # RAM
     if command -v free &> /dev/null; then
-        local ram_total=$(free -h | awk '/^Mem:/ {print $2}')
-        local ram_used=$(free -h | awk '/^Mem:/ {print $3}')
-        local ram_percent=$(free | awk '/^Mem:/ {printf "%.1f", $3/$2 * 100}')
+        ram_total=$(free -h | awk '/^Mem:/ {print $2}')
+        ram_used=$(free -h | awk '/^Mem:/ {print $3}')
+        ram_percent=$(free | awk '/^Mem:/ {printf "%.1f", $3/$2 * 100}')
         echo "RAM: ${ram_used} / ${ram_total} (${ram_percent}%)"
     else
         echo "RAM: N/A (free command not found)"
     fi
 
     # Disk
-    local disk_used=$(df -h / | awk 'NR==2 {print $3}')
-    local disk_total=$(df -h / | awk 'NR==2 {print $2}')
-    local disk_percent=$(df -h / | awk 'NR==2 {print $5}')
+    disk_used=$(df -h / | awk 'NR==2 {print $3}')
+    disk_total=$(df -h / | awk 'NR==2 {print $2}')
+    disk_percent=$(df -h / | awk 'NR==2 {print $5}')
     echo "Disk /: $disk_used / $disk_total ($disk_percent)"
 }
 
@@ -91,23 +114,26 @@ check_docker() {
 # Функция для проверки HTTP сервисов
 check_services() {
     local urls=("$@")
+    local success_count=0
+    local total_count=${#urls[@]}
+    local status_code
+    local time_total
+    local result
+    local exit_status
+    local curl_output
+    
     if [ ${#urls[@]} -eq 0 ]; then
-        return 0 
+        return 0
     fi
 
     echo -e "\n=== Service Health Checks ==="
     log_message "=== Service Health Checks ==="
-    local success_count=0
-    local total_count=${#urls[@]}
 
     for url in "${urls[@]}"; do
-        local status_code
-        local time_total
-        local result="FAIL"
-        local exit_status=1
+        result="FAIL"
+        exit_status=1
 
         if command -v curl &> /dev/null; then
-            local curl_output
             curl_output=$(curl -o /dev/null -s -w "%{http_code} %{time_total}" --connect-timeout 5 --max-time 10 "$url" 2>&1) || exit_status=$?
             if [ $exit_status -eq 0 ]; then
                 read -r status_code time_total <<< "$curl_output"
@@ -119,7 +145,7 @@ check_services() {
                     echo "[$result] $url (HTTP $status_code)"
                 fi
             else
-                 echo "[$result] $url (curl error: connection refused or timeout)"
+                echo "[$result] $url (curl error: connection refused or timeout)"
             fi
         else
             echo "curl is not installed. Cannot check services."
@@ -129,19 +155,24 @@ check_services() {
 
     echo "Result: $success_count/$total_count services healthy"
     if [ $success_count -eq 0 ]; then
-        return 1 
-    elif [ $success_count -lt $total_count ]; then
-        return 1 
+        return 1
+    elif [ $success_count -lt "$total_count" ]; then
+        return 1
     else
         return 0
     fi
 }
 
+# Обработка аргументов
 urls=()
 while [[ $# -gt 0 ]]; do
     case $1 in
         --help)
             show_help
+            exit 0
+            ;;
+        --version)
+            show_version
             exit 0
             ;;
         -*)
@@ -158,7 +189,7 @@ done
 
 # Проверка зависимостей
 for cmd in curl; do
-    if ! command -v $cmd &> /dev/null; then
+    if ! command -v "$cmd" &> /dev/null; then
         echo "Ошибка: '$cmd' не найден. Пожалуйста, установите его." >&2
         exit 1
     fi
@@ -169,6 +200,7 @@ get_system_info
 get_resources
 check_docker
 
+# Проверка сервисов и сохранение exit code
 final_exit_code=0
 if ! check_services "${urls[@]}"; then
     final_exit_code=1
