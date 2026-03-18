@@ -1,0 +1,46 @@
+- name: Create application directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+  become: yes
+
+- name: Copy entire project directory
+  copy:
+    src: "{{ playbook_dir }}/../"
+    dest: "{{ app_dir }}/"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0755'
+    directory_mode: '0755'
+  become: yes
+
+- name: Deploy application with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    files:
+      - docker-compose.yml
+    state: present
+    pull: missing
+    remove_orphans: yes
+  register: output
+
+- name: Show deploy result
+  debug:
+    var: output
+
+- name: Check if container is running and healthy
+  uri:
+    url: "http://localhost:{{ app_port }}/health"
+    method: GET
+    status_code: 200
+  register: health_result
+  retries: 10
+  delay: 5
+  until: health_result.status == 200
+
+- name: Print health check result
+  debug:
+    msg: "Application is healthy!"

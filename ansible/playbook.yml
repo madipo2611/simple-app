@@ -1,0 +1,16 @@
+---
+- name: Deploy Simple App
+  hosts: webservers
+  become: no 
+  vars:
+    app_port: 5000
+    app_dir: /opt/simple-app
+  roles:
+    - docker
+    - app
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
+      become: yes
