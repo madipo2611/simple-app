@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
-set -euo pipefail # Прерывать выполнение при ошибке, неопределенной переменной, ошибке в пайпе
+set -euo pipefail
 
-# --- Конфигурация ---
-LOG_FILE="./server-info.log" # Или /var/log/server-info.log, если есть права
+LOG_FILE="./server-info.log" 
 SCRIPT_NAME=$(basename "$0")
 VERSION="1.0.0"
 
-# --- Функции ---
-
-# Функция для вывода справки
 show_help() {
     cat << EOF
 Использование: $SCRIPT_NAME [--help] [URL1 URL2 ...]
@@ -26,7 +22,6 @@ show_help() {
 EOF
 }
 
-# Функция для логирования с временной меткой
 log_message() {
     local message="$1"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
@@ -83,7 +78,7 @@ check_docker() {
     log_message "=== Docker ==="
     if command -v docker &> /dev/null; then
         if docker info &>/dev/null; then
-            echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS   PORTS   NAMES" # Заголовок для красоты
+            echo "CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS   PORTS   NAMES"
             docker ps --format "table {{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Names}}" | tail -n +2 || echo "No running containers"
         else
             echo "Docker daemon is not running or permission denied."
@@ -97,7 +92,7 @@ check_docker() {
 check_services() {
     local urls=("$@")
     if [ ${#urls[@]} -eq 0 ]; then
-        return 0 # Нет URL для проверки
+        return 0 
     fi
 
     echo -e "\n=== Service Health Checks ==="
@@ -112,7 +107,6 @@ check_services() {
         local exit_status=1
 
         if command -v curl &> /dev/null; then
-            # Используем curl для проверки
             local curl_output
             curl_output=$(curl -o /dev/null -s -w "%{http_code} %{time_total}" --connect-timeout 5 --max-time 10 "$url" 2>&1) || exit_status=$?
             if [ $exit_status -eq 0 ]; then
@@ -135,17 +129,14 @@ check_services() {
 
     echo "Result: $success_count/$total_count services healthy"
     if [ $success_count -eq 0 ]; then
-        return 1 # Возвращаем ошибку, если ни один сервис не доступен
+        return 1 
     elif [ $success_count -lt $total_count ]; then
-        return 1 # Возвращаем ошибку, если доступны не все
+        return 1 
     else
         return 0
     fi
 }
 
-# --- Основная логика ---
-
-# Обработка аргументов
 urls=()
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -178,7 +169,6 @@ get_system_info
 get_resources
 check_docker
 
-# Проверка сервисов и сохранение exit code
 final_exit_code=0
 if ! check_services "${urls[@]}"; then
     final_exit_code=1
