@@ -1,14 +1,11 @@
-# app/main.py
 from flask import Flask, request, jsonify, abort
 import logging
 
 app = Flask(__name__)
 
-# Простое "хранилище" данных в памяти
 users = {}
 next_id = 1
 
-# Настройка базового логирования
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -63,4 +60,4 @@ def delete_user(user_id):
     return '', 204
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=False) # Отключаем debug для продакшена
+    app.run(host='0.0.0.0', port=5000, debug=False) 
