@@ -1,5 +1,3 @@
-# Dockerfile
-# Этап 1: Сборка (можно оставить пустым для простоты, но для multi-stage см. бонусы)
 FROM python:3.12-slim-bookworm AS builder
 
 WORKDIR /app
@@ -8,10 +6,9 @@ WORKDIR /app
 COPY app/requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-# Этап 2: Финальный образ
+Финальный образ
 FROM python:3.12-slim-bookworm
 
-# Создаем непривилегированного пользователя
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
