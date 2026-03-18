@@ -187,13 +187,10 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Проверка зависимостей
-for cmd in curl; do
-    if ! command -v "$cmd" &> /dev/null; then
-        echo "Ошибка: '$cmd' не найден. Пожалуйста, установите его." >&2
-        exit 1
-    fi
-done
+if ! command -v curl &> /dev/null; then
+    echo "Ошибка: 'curl' не найден. Пожалуйста, установите его." >&2
+    exit 1
+fi
 
 # Запуск функций
 get_system_info
