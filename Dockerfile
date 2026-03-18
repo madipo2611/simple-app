@@ -6,7 +6,7 @@ WORKDIR /app
 COPY app/requirements.txt .
 RUN pip install --user --no-cache-dir -r requirements.txt
 
-Финальный образ
+# Финальный образ
 FROM python:3.12-slim-bookworm
 
 RUN groupadd -r appuser && useradd -r -g appuser appuser
